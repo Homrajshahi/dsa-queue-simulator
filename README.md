@@ -12,17 +12,24 @@ This simulator orchestrates traffic flow at a bustling junction, ensuring fairne
 ---
 
 ## 🚀 Features
+
 ✅ **Queue-Powered Precision:** Uses **12 circular queues** (3 lanes per road × 4 roads) for **lightning-fast O(1) enqueue/dequeue operations**.
+
 ✅ **Stunning Visualization:** Powered by **SDL2**, crafting an immersive **real-time traffic experience**.
+
 ✅ **Dynamic Traffic Lights:** Cycles **every 7 seconds**, smoothly controlling traffic flow.
+
 ✅ **Diverse Vehicle Types:** **90% regular cars**, **10% emergency vehicles**, speeds ranging from **0.2 to 0.8** units.
+
 ✅ **File-Based Harmony:** **vehicles.txt** integration allows **fluid, real-time updates**.
 
 ---
 
 ## ⚠️ Current Limitations
 💥 **Turning Logic:** L1 vehicles *(e.g., AL1, BL1)* fail to complete left turns to L3 *(e.g., AL1 to BL3)*, stalling at zebra crossings.
+
 💥 **Priority Logic:** AL2 **does not activate priority mode** when congestion exceeds **10 vehicles**.
+
 💥 **Minor Glitches:**
    - 🚗 Vehicle **jittering/collisions** at zebra crossings.
    - 🚗 Vehicles **vanishing too soon** post-turn.
