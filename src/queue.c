@@ -89,43 +89,79 @@ bool isPriorityLaneActive(Queue* queue) {
     return queue && queue->isPriorityLane && queue->size > 5;
 }
 
+// Next, let's fix the vehicle path setting logic
 void setVehiclePath(Vehicle* vehicle) {
-    if (!vehicle) return;
+    float turnProbability = 0.6; // 60% chance to turn from left lane
 
-    vehicle->endDirection = vehicle->startDirection;
-    vehicle->endLane = vehicle->startLane;
-    vehicle->turning = false;
-    vehicle->passedIntersection = false;
+    if (vehicle->startLane == LANE_LEFT) {
+        // Left lane: 60% chance to turn left, 40% chance to go straight
+        if ((float)rand() / RAND_MAX < turnProbability) {
+            vehicle->turning = true;
+            // Set end direction based on left turn
+            switch (vehicle->startDirection) {
+                case DIRECTION_SOUTH:
+                    vehicle->endDirection = DIRECTION_WEST;  // A turns to B
+                    break;
+                case DIRECTION_WEST:
+                    vehicle->endDirection = DIRECTION_SOUTH; // B turns to A
+                    break;
+                case DIRECTION_EAST:
+                    vehicle->endDirection = DIRECTION_NORTH; // C turns to D
+                    break;
+                case DIRECTION_NORTH:
+                    vehicle->endDirection = DIRECTION_EAST;  // D turns to C
+                    break;
+            }
+        } else {
+            // Go straight
+            vehicle->turning = false;
+            vehicle->endDirection = vehicle->startDirection;
+        }
+    } else if (vehicle->startLane == LANE_CENTER) {
+        // Center lane: Always turn (either left or right)
+        vehicle->turning = true;
 
-    if (vehicle->startLane == LANE_LEFT) { // L1 turns left
-        switch (vehicle->startDirection) {
-            case DIRECTION_SOUTH: vehicle->endDirection = DIRECTION_WEST; break;  // A -> B (BL3)
-            case DIRECTION_WEST:  vehicle->endDirection = DIRECTION_SOUTH; break; // B -> A (AL3)
-            case DIRECTION_EAST:  vehicle->endDirection = DIRECTION_NORTH; break; // C -> D (DL3)
-            case DIRECTION_NORTH: vehicle->endDirection = DIRECTION_EAST; break;  // D -> C (CL3)
+        // 50% chance to turn left, 50% chance to turn right
+        if ((float)rand() / RAND_MAX < 0.5) {
+            // Turn left
+            switch (vehicle->startDirection) {
+                case DIRECTION_SOUTH:
+                    vehicle->endDirection = DIRECTION_WEST;  // A turns to B
+                    break;
+                case DIRECTION_WEST:
+                    vehicle->endDirection = DIRECTION_SOUTH; // B turns to A
+                    break;
+                case DIRECTION_EAST:
+                    vehicle->endDirection = DIRECTION_NORTH; // C turns to D
+                    break;
+                case DIRECTION_NORTH:
+                    vehicle->endDirection = DIRECTION_EAST;  // D turns to C
+                    break;
+            }
+        } else {
+            // Turn right
+            switch (vehicle->startDirection) {
+                case DIRECTION_SOUTH:
+                    vehicle->endDirection = DIRECTION_EAST;  // A turns to C
+                    break;
+                case DIRECTION_WEST:
+                    vehicle->endDirection = DIRECTION_NORTH; // B turns to D
+                    break;
+                case DIRECTION_EAST:
+                    vehicle->endDirection = DIRECTION_SOUTH; // C turns to A
+                    break;
+                case DIRECTION_NORTH:
+                    vehicle->endDirection = DIRECTION_WEST;  // D turns to B
+                    break;
+            }
         }
+    } else { // LANE_RIGHT
+        // Right lane: Always turn right
         vehicle->turning = true;
-        vehicle->endLane = LANE_RIGHT;
     }
-    else if (vehicle->startLane == LANE_CENTER) { // L2 turns left or right with restrictions
-        int turnChoice = rand() % 2; // 0 = left, 1 = right
-        switch (vehicle->startDirection) {
-            case DIRECTION_SOUTH: // A
-                vehicle->endDirection = turnChoice ? DIRECTION_EAST : DIRECTION_NORTH; // CL3 or DL3
-                break;
-            case DIRECTION_WEST:  // B
-                vehicle->endDirection = turnChoice ? DIRECTION_EAST : DIRECTION_SOUTH; // CL3 or AL3
-                break;
-            case DIRECTION_EAST:  // C
-                vehicle->endDirection = turnChoice ? DIRECTION_NORTH : DIRECTION_WEST; // DL3 or BL3
-                break;
-            case DIRECTION_NORTH: // D
-                vehicle->endDirection = turnChoice ? DIRECTION_SOUTH : DIRECTION_WEST; // AL3 or BL3
-                break;
-        }
-        vehicle->turning = true;
-        vehicle->endLane = LANE_RIGHT;
-    }
+
+    // Set end lane to the rightmost lane (LANE_RIGHT)
+    vehicle->endLane = LANE_RIGHT;
 }
 
 bool isSafeDistance(Vehicle* v1, Vehicle* v2) {
@@ -175,64 +211,38 @@ int getQueueSize(Direction direction, LanePosition lane) {
     return 0;
 }
 
-bool canProceedThroughIntersection(Vehicle* vehicle, bool trafficLights[4]) {
-    if (!vehicle) return false;
+// First, let's define the traffic light control logic
+bool canProceedThroughIntersection(Vehicle* vehicle,  bool trafficLights[4]) {
+    // Emergency vehicles can always proceed
+    if (vehicle->type == 1) return true;
 
+    // Already passed the intersection
     if (vehicle->passedIntersection) return true;
 
-    bool canProceed = false;
+    // Check traffic light states based on direction
+    int trafficLight = -1;
 
     switch (vehicle->startDirection) {
-        case DIRECTION_SOUTH:  // Road A - t2
-            if (vehicle->startLane == LANE_LEFT) { // AL1 -> BL3
-                canProceed = trafficLights[1]; // t2
-            } else if (vehicle->startLane == LANE_CENTER) { // AL2 -> DL3 or CL3
-                canProceed = trafficLights[1]; // t2
-            } else { // AL3 <- CL1 (t1), BL2 (t3), DL2 (t4)
-                canProceed = trafficLights[1]; // t2
-            }
+        case DIRECTION_SOUTH: // A - controlled by t2 (index 1)
+            trafficLight = 1;
             break;
-
-        case DIRECTION_WEST:  // Road B - t3
-            if (vehicle->startLane == LANE_LEFT) { // BL1 -> AL3
-                canProceed = trafficLights[2]; // t3
-            } else if (vehicle->startLane == LANE_CENTER) { // BL2 -> AL3 or CL3
-                canProceed = trafficLights[2]; // t3
-            } else { // BL3 <- AL1 (t2), CL2 (t1), DL2 (t4)
-                canProceed = trafficLights[2]; // t3
-            }
+        case DIRECTION_WEST:  // B - controlled by t3 (index 2)
+            trafficLight = 0;
             break;
-
-        case DIRECTION_EAST:  // Road C - t1
-            if (vehicle->startLane == LANE_LEFT) { // CL1 -> DL3
-                canProceed = trafficLights[0]; // t1
-            } else if (vehicle->startLane == LANE_CENTER) { // CL2 -> BL3 or DL3
-                canProceed = trafficLights[0]; // t1
-            } else { // CL3 <- AL2 (t2), BL2 (t3), DL1 (t4)
-                canProceed = trafficLights[0]; // t1
-            }
+        case DIRECTION_EAST:  // C - controlled by t1 (index 0)
+            trafficLight = 2;
             break;
-
-        case DIRECTION_NORTH:  // Road D - t4
-            if (vehicle->startLane == LANE_LEFT) { // DL1 -> CL3
-                canProceed = trafficLights[3]; // t4
-            } else if (vehicle->startLane == LANE_CENTER) { // DL2 -> BL3 or AL3
-                canProceed = trafficLights[3]; // t4
-            } else { // DL3 <- BL1 (t3), CL2 (t1), AL2 (t2)
-                canProceed = trafficLights[3]; // t4
-            }
+        case DIRECTION_NORTH: // D - controlled by t4 (index 3)
+            trafficLight = 3;
             break;
     }
 
-    if (vehicle->isPriorityLane && getQueueSize(vehicle->startDirection, LANE_CENTER) > 5) {
-        return true;
+    // If light is red, stop
+    if (trafficLight  >= 0 && !trafficLights[trafficLight]) {
+        return false;
     }
 
-    if (isEmergencyVehicle(vehicle)) {
-        return true;
-    }
-
-    return canProceed;
+    return true;
 }
 
 void updateVehiclePosition(Vehicle* vehicle) {
