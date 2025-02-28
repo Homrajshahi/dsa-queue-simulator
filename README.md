@@ -91,10 +91,15 @@ A future **traffic_generator.c** will automate vehicle creation, but for now, ma
 
 ## 📂 Project Structure
 📁 `simulator.c` → **SDL2 visualization, queue management, traffic logic.**
+
 📁 `queue.c/queue.h` → **Circular queues for lane/vehicle management.**
+
 📁 `bin/` → **Executables & vehicle data (`vehicles.txt`).**
+
 📁 `Makefile` → **Effortless SDL2 compilation.**
+
 📁 `docs/` → **Demo GIF + assignment report (`report.pdf`).**
+
 
 ---
 
