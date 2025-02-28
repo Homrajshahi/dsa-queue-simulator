@@ -189,47 +189,42 @@ void updateVehiclePositions(Queue* queues[], bool lightStates[]) {
             Vehicle* vehicle = queue->items[(queue->front + j) % MAX_QUEUE_SIZE];
             if (!vehicle) continue;
 
+            // Determine lane offset
             float laneOffset;
-            if (direction == 1 || direction == 3) { // Roads C and D - Invert
+            if (direction == 1 || direction == 3) {
                 laneOffset = ((2 - lane) + 0.5) * LANE_WIDTH;
-            } else { // Roads A and B - Normal
+            } else {
                 laneOffset = (lane + 0.5) * LANE_WIDTH;
             }
-            switch(direction) {
-                case 0: // A
-                    vehicle->x = WINDOW_WIDTH/2 - ROAD_WIDTH/2 + laneOffset;
-                    break;
-                case 1: // B
-                    vehicle->y = WINDOW_HEIGHT/2 - ROAD_WIDTH/2 + laneOffset;
-                    break;
-                case 2: // C
-                    vehicle->y = WINDOW_HEIGHT/2 - ROAD_WIDTH/2 + laneOffset;
-                    break;
-                case 3: // D
-                    vehicle->x = WINDOW_WIDTH/2 - ROAD_WIDTH/2 + laneOffset;
-                    break;
+
+            // Set vehicle position based on direction
+            switch (direction) {
+                case 0: vehicle->x = WINDOW_WIDTH / 2 - ROAD_WIDTH / 2 + laneOffset; break; // A
+                case 1: vehicle->y = WINDOW_HEIGHT / 2 - ROAD_WIDTH / 2 + laneOffset; break; // B
+                case 2: vehicle->y = WINDOW_HEIGHT / 2 - ROAD_WIDTH / 2 + laneOffset; break; // C
+                case 3: vehicle->x = WINDOW_WIDTH / 2 - ROAD_WIDTH / 2 + laneOffset; break; // D
             }
 
+            // Check if vehicle is at the zebra crossing
             bool atZebra = false, pastIntersection = false;
-            switch(direction) {
+            switch (direction) {
                 case 0: // A (Southbound)
-                    atZebra = vehicle->y >= WINDOW_HEIGHT/2 + ROAD_WIDTH/2 - 40 && vehicle->y <= WINDOW_HEIGHT/2 + ROAD_WIDTH/2;
-                    pastIntersection = vehicle->y < WINDOW_HEIGHT/2;
+                    atZebra = vehicle->y >= WINDOW_HEIGHT / 2 + ROAD_WIDTH / 2 - 40 && vehicle->y < WINDOW_HEIGHT / 2;
                     break;
                 case 1: // B (Westbound)
-                    atZebra = vehicle->x >= WINDOW_WIDTH/2 - ROAD_WIDTH/2 - 40 && vehicle->x <= WINDOW_WIDTH/2 - ROAD_WIDTH/2;
-                    pastIntersection = vehicle->x < WINDOW_WIDTH/2;
+                    atZebra = vehicle->x >= WINDOW_WIDTH / 2 - ROAD_WIDTH / 2 - 40 && vehicle->x < WINDOW_WIDTH / 2;
                     break;
                 case 2: // C (Eastbound)
-                    atZebra = vehicle->x <= WINDOW_WIDTH/2 + ROAD_WIDTH/2 + 40 && vehicle->x >= WINDOW_WIDTH/2 + ROAD_WIDTH/2;
-                    pastIntersection = vehicle->x > WINDOW_WIDTH/2;
+                    atZebra = vehicle->x <= WINDOW_WIDTH / 2 + ROAD_WIDTH / 2 + 40 && vehicle->x > WINDOW_WIDTH / 2;
+                    pastIntersection = vehicle->x > WINDOW_WIDTH / 2;
                     break;
                 case 3: // D (Northbound)
-                    atZebra = vehicle->y <= WINDOW_HEIGHT/2 - ROAD_WIDTH/2 + 40 && vehicle->y >= WINDOW_HEIGHT/2 - ROAD_WIDTH/2;
-                    pastIntersection = vehicle->y > WINDOW_HEIGHT/2;
+                    atZebra = vehicle->y <= WINDOW_HEIGHT / 2 - ROAD_WIDTH / 2 + 40 && vehicle->y > WINDOW_HEIGHT / 2;
+                    pastIntersection = vehicle->y < WINDOW_HEIGHT / 2;
                     break;
             }
 
+            // Determine if the vehicle can proceed through the intersection
             bool canMove = canProceedThroughIntersection(vehicle, lightStates);
             Vehicle* ahead = (j > 0) ? queue->items[(queue->front + j - 1) % MAX_QUEUE_SIZE] : NULL;
             if (ahead && !isSafeDistance(vehicle, ahead)) canMove = false;
@@ -237,101 +232,35 @@ void updateVehiclePositions(Queue* queues[], bool lightStates[]) {
             // Stop at zebra crossing if light is red (unless past intersection or emergency)
             if (atZebra && !pastIntersection && !canMove) {
                 vehicle->waitTime++;
-                switch(direction) {
-                    case 0: vehicle->y = WINDOW_HEIGHT/2 + ROAD_WIDTH/2 + 5; break; // A
-                    case 1: vehicle->x = WINDOW_WIDTH/2 - ROAD_WIDTH/2 - 5; break; // B
-                    case 2: vehicle->x = WINDOW_WIDTH/2 + ROAD_WIDTH/2 + 5; break; // C
-                    case 3: vehicle->y = WINDOW_HEIGHT/2 - ROAD_WIDTH/2 - 5; break; // D
+                switch (direction) {
+                    case 0: vehicle->y = WINDOW_HEIGHT / 2 + ROAD_WIDTH / 2 + 5; break; // A
+                    case 1: vehicle->x = WINDOW_WIDTH / 2 - ROAD_WIDTH / 2 - 5; break; // B
+                    case 2: vehicle->x = WINDOW_WIDTH / 2 + ROAD_WIDTH / 2 + 5; break; // C
+                    case 3: vehicle->y = WINDOW_HEIGHT / 2 - ROAD_WIDTH / 2 - 5; break; // D
                 }
-                continue;
+                continue; // Skip further movement logic
             }
 
+            // Update vehicle position if allowed to move
             if (canMove) {
-                if (vehicle->turning && atZebra && !pastIntersection) {
-                    vehicle->progress += vehicle->speed / 100.0f;
-                    float angle = 90.0f * vehicle->progress;
-                    float radius = ROAD_WIDTH / 2;
-                    float centerX = WINDOW_WIDTH/2, centerY = WINDOW_HEIGHT/2;
-
-                    switch(vehicle->startDirection) {
-                        case DIRECTION_SOUTH: // A
-                            if (vehicle->startLane == LANE_LEFT) { // AL1 -> BL3
-                                vehicle->x = centerX + radius * cos(angle * M_PI/180); // Left to west
-                                vehicle->y = centerY + radius * sin(angle * M_PI/180);
-                            } else if (vehicle->endDirection == DIRECTION_EAST) { // AL2 -> CL3
-                                vehicle->x = centerX - radius * cos(angle * M_PI/180); // Right to east
-                                vehicle->y = centerY - radius * sin(angle * M_PI/180);
-                            } else { // AL2 -> DL3
-                                vehicle->x = centerX - radius * sin(angle * M_PI/180); // Left to north
-                                vehicle->y = centerY + radius * cos(angle * M_PI/180);
-                            }
-                            break;
-                        case DIRECTION_WEST: // B
-                            if (vehicle->startLane == LANE_LEFT) { // BL1 -> AL3
-                                vehicle->x = centerX - radius * sin(angle * M_PI/180); // Left to south
-                                vehicle->y = centerY - radius * cos(angle * M_PI/180);
-                            } else if (vehicle->endDirection == DIRECTION_EAST) { // BL2 -> CL3
-                                vehicle->x = centerX - radius * cos(angle * M_PI/180); // Right to east
-                                vehicle->y = centerY - radius * sin(angle * M_PI/180);
-                            } else { // BL2 -> AL3
-                                vehicle->x = centerX - radius * sin(angle * M_PI/180); // Left to south
-                                vehicle->y = centerY - radius * cos(angle * M_PI/180);
-                            }
-                            break;
-                        case DIRECTION_EAST: // C
-                            if (vehicle->startLane == LANE_LEFT) { // CL1 -> DL3
-                                vehicle->x = centerX - radius * sin(angle * M_PI/180); // Left to north
-                                vehicle->y = centerY + radius * cos(angle * M_PI/180);
-                            } else if (vehicle->endDirection == DIRECTION_WEST) { // CL2 -> BL3
-                                vehicle->x = centerX + radius * cos(angle * M_PI/180); // Left to west
-                                vehicle->y = centerY + radius * sin(angle * M_PI/180);
-                            } else { // CL2 -> DL3
-                                vehicle->x = centerX - radius * sin(angle * M_PI/180); // Right to north
-                                vehicle->y = centerY + radius * cos(angle * M_PI/180);
-                            }
-                            break;
-                        case DIRECTION_NORTH: // D
-                            if (vehicle->startLane == LANE_LEFT) { // DL1 -> CL3
-                                vehicle->x = centerX - radius * cos(angle * M_PI/180); // Left to east
-                                vehicle->y = centerY - radius * sin(angle * M_PI/180);
-                            } else if (vehicle->endDirection == DIRECTION_WEST) { // DL2 -> BL3
-                                vehicle->x = centerX + radius * cos(angle * M_PI/180); // Left to west
-                                vehicle->y = centerY + radius * sin(angle * M_PI/180);
-                            } else { // DL2 -> AL3
-                                vehicle->x = centerX + radius * sin(angle * M_PI/180); // Right to south
-                                vehicle->y = centerY - radius * cos(angle * M_PI/180);
-                            }
-                            break;
-                    }
-                    if (vehicle->progress >= 1.0f) {
-                        vehicle->turning = false;
-                        vehicle->passedIntersection = true;
-                        switch(vehicle->endDirection) {
-                            case DIRECTION_SOUTH: vehicle->x = WINDOW_WIDTH/2 - ROAD_WIDTH/2 + (LANE_RIGHT + 0.5) * LANE_WIDTH; break; // AL3
-                            case DIRECTION_WEST:  vehicle->y = WINDOW_HEIGHT/2 - ROAD_WIDTH/2 + (LANE_RIGHT + 0.5) * LANE_WIDTH; break; // BL3
-                            case DIRECTION_EAST:  vehicle->y = WINDOW_HEIGHT/2 - ROAD_WIDTH/2 + (LANE_RIGHT + 0.5) * LANE_WIDTH; break; // CL3
-                            case DIRECTION_NORTH: vehicle->x = WINDOW_WIDTH/2 - ROAD_WIDTH/2 + (LANE_RIGHT + 0.5) * LANE_WIDTH; break; // DL3
-                        }
-                    }
-                } else {
-                    updateVehiclePosition(vehicle);
-                }
-
-                bool shouldDequeue = false;
-                switch(direction) {
-                    case 0: shouldDequeue = vehicle->y < -VEHICLE_SIZE; break; // A
-                    case 1: shouldDequeue = vehicle->x < -VEHICLE_SIZE; break; // B
-                    case 2: shouldDequeue = vehicle->x > WINDOW_WIDTH + VEHICLE_SIZE; break; // C
-                    case 3: shouldDequeue = vehicle->y > WINDOW_HEIGHT + VEHICLE_SIZE; break; // D
-                }
-                if (shouldDequeue) {
-                    int nextQueueIndex = vehicle->endDirection * 3 + vehicle->endLane;
-                    if (nextQueueIndex >= 0 && nextQueueIndex < 12) enqueue(queues[nextQueueIndex], vehicle);
-                    else free(vehicle);
-                    dequeue(queue);
-                }
+                updateVehiclePosition(vehicle);
             } else {
                 vehicle->waitTime++;
+            }
+
+            // Check if the vehicle should be dequeued and moved to the next queue
+            bool shouldDequeue = false;
+            switch (direction) {
+                case 0: shouldDequeue = vehicle->y < -VEHICLE_SIZE; break; // A
+                case 1: shouldDequeue = vehicle->x < -VEHICLE_SIZE; break; // B
+                case 2: shouldDequeue = vehicle->x > WINDOW_WIDTH + VEHICLE_SIZE; break; // C
+                case 3: shouldDequeue = vehicle->y > WINDOW_HEIGHT + VEHICLE_SIZE; break; // D
+            }
+            if (shouldDequeue) {
+                int nextQueueIndex = vehicle->endDirection * 3 + vehicle->endLane;
+                if (nextQueueIndex >= 0 && nextQueueIndex < 12) enqueue(queues[nextQueueIndex], vehicle);
+                else free(vehicle);
+                dequeue(queue);
             }
         }
     }
@@ -384,10 +313,10 @@ int main() {
     }
 
     TrafficLight lights[4] = {
-        {WINDOW_WIDTH/2 - ROAD_WIDTH/2 - 30, WINDOW_HEIGHT/2 + ROAD_WIDTH/2 + 10, false, "t1"}, // C (Eastbound)
-        {WINDOW_WIDTH/2 - ROAD_WIDTH/2 - 30, WINDOW_HEIGHT/2 - ROAD_WIDTH/2 - 30, false, "t2"}, // A (Southbound, start red)
-        {WINDOW_WIDTH/2 + ROAD_WIDTH/2 + 10, WINDOW_HEIGHT/2 - ROAD_WIDTH/2 - 30, false, "t3"}, // B (Westbound, start red)
-        {WINDOW_WIDTH/2 + ROAD_WIDTH/2 + 10, WINDOW_HEIGHT/2 + ROAD_WIDTH/2 + 10, false, "t4"}  // D (Northbound, start red)
+        {310, 370, false, "t1"}, // t1 (Southwest corner)
+        {310, 210, false, "t2"}, // t2 (Northwest corner)
+        {470, 210, false, "t3"}, // t3 (Northeast corner)
+        {470, 370, false, "t4"}  // t4 (Southeast corner)
     };
 
     Queue* queues[12];
@@ -399,8 +328,8 @@ int main() {
 
     srand(time(NULL));
     bool lightStates[4] = {false, false, false, false}; // All red initially
-    int currentLight = 1, lightTimer = 0;
-    const int LIGHT_CYCLE_TIME = 7000; // 7 seconds
+    int currentLight = 0, lightTimer = 0;
+    const int LIGHT_CYCLE_TIME = 5000; // 5 seconds
 
     int vehicleGenTimer = 0, VEHICLE_GEN_INTERVAL = 20;
 
@@ -418,56 +347,54 @@ int main() {
 
         processVehiclesFromFile(queues, "vehicles.txt");
 
-	vehicleGenTimer++;
-if (vehicleGenTimer >= VEHICLE_GEN_INTERVAL) {
-    vehicleGenTimer = 0;
-    for (int dir = 0; dir < 4; dir++) {
-        if (queueLengths[dir] < 8) {
-            int lane = rand() % 2; // Lane 0 (Left) or Lane 1 (Center)
-            Vehicle* vehicle = malloc(sizeof(Vehicle));
-            if (vehicle) {
-                vehicle->vehicleId = rand();
-                vehicle->type = (rand() % 100 < 90) ? 0 : (1 + rand() % 3);
-                vehicle->startDirection = dir;
-                vehicle->startLane = lane;
-                vehicle->speed = 1.5f + (rand() % 15) / 10.0f;
-                float laneOffset;
-                if (dir == 2 || dir == 3) { // Road C and D - Invert
-                    laneOffset = ((2 - lane) + 0.5) * LANE_WIDTH;
-                } else { // Road A and B - Normal
-                    laneOffset = (lane + 0.5) * LANE_WIDTH;
+        vehicleGenTimer++;
+        if (vehicleGenTimer >= VEHICLE_GEN_INTERVAL) {
+            vehicleGenTimer = 0;
+            for (int dir = 0; dir < 4; dir++) {
+                if (queueLengths[dir] < 8) {
+                    int lane = rand() % 2; // Lane 0 (Left) or Lane 1 (Center)
+                    Vehicle* vehicle = malloc(sizeof(Vehicle));
+                    if (vehicle) {
+                        vehicle->vehicleId = rand();
+                        vehicle->type = (rand() % 100 < 90) ? 0 : (1 + rand() % 3);
+                        vehicle->startDirection = dir;
+                        vehicle->startLane = lane;
+                        vehicle->speed = 2.0f + (rand() % 15) / 10.0f; // Faster speed
+                        float laneOffset;
+                        if (dir == 2 || dir == 3) { 
+                            laneOffset = ((2 - lane) + 0.5) * LANE_WIDTH;
+                        } else {
+                            laneOffset = (lane + 0.5) * LANE_WIDTH;
+                        }
+                        switch(dir) {
+                            case 0: // A (Southbound)
+                                vehicle->x = WINDOW_WIDTH/2 - ROAD_WIDTH/2 + laneOffset;
+                                vehicle->y = WINDOW_HEIGHT + VEHICLE_SIZE;
+                                break;
+                            case 1: // B (Westbound)
+                                vehicle->x = WINDOW_WIDTH + VEHICLE_SIZE;
+                                vehicle->y = WINDOW_HEIGHT/2 - ROAD_WIDTH/2 + laneOffset;
+                                break;
+                            case 2: // C (Eastbound)
+                                vehicle->x = -VEHICLE_SIZE;
+                                vehicle->y = WINDOW_HEIGHT/2 - ROAD_WIDTH/2 + laneOffset;
+                                break;
+                            case 3: // D (Northbound)
+                                vehicle->x = WINDOW_WIDTH/2 - ROAD_WIDTH/2 + laneOffset;
+                                vehicle->y = -VEHICLE_SIZE;
+                                break;
+                        }
+                        vehicle->turning = false;
+                        vehicle->turnAngle = 0.0f;
+                        vehicle->progress = 0.0f;
+                        vehicle->waitTime = 0;
+                        vehicle->passedIntersection = false;
+                        setVehiclePath(vehicle);
+                        enqueue(queues[dir * 3 + lane], vehicle);
+                    }
                 }
-                switch(dir) {
-                    case 0: // A (Southbound)
-                        vehicle->x = WINDOW_WIDTH/2 - ROAD_WIDTH/2 + laneOffset;
-                        vehicle->y = WINDOW_HEIGHT + VEHICLE_SIZE;
-                        break;
-                    case 1: // B (Westbound)
-                        vehicle->x = WINDOW_WIDTH + VEHICLE_SIZE;
-                        vehicle->y = WINDOW_HEIGHT/2 - ROAD_WIDTH/2 + laneOffset;
-                        break;
-                    case 2: // C (Eastbound)
-                        vehicle->x = -VEHICLE_SIZE;
-                        vehicle->y = WINDOW_HEIGHT/2 - ROAD_WIDTH/2 + laneOffset;
-                        break;
-                    case 3: // D (Northbound)
-                        vehicle->x = WINDOW_WIDTH/2 - ROAD_WIDTH/2 + laneOffset;
-                        vehicle->y = -VEHICLE_SIZE;
-                        break;
-                }
-                // Debug print to verify initial position
-                printf("Dir %d, Lane %d, x %.1f, y %.1f\n", dir, lane, vehicle->x, vehicle->y);
-                vehicle->turning = false;
-                vehicle->turnAngle = 0.0f;
-                vehicle->progress = 0.0f;
-                vehicle->waitTime = 0;
-                vehicle->passedIntersection = false;
-                setVehiclePath(vehicle);
-                enqueue(queues[dir * 3 + lane], vehicle);
             }
         }
-    }
-};
 
         updateVehiclePositions(queues, lightStates);
 
@@ -475,7 +402,7 @@ if (vehicleGenTimer >= VEHICLE_GEN_INTERVAL) {
         if (lightTimer >= LIGHT_CYCLE_TIME) {
             lightTimer = 0;
             lightStates[currentLight] = false;
-            currentLight = (currentLight + 1) % 4; // Cycle: t2 -> t3 -> t1 -> t4
+            currentLight = (currentLight + 1) % 4; // Cycle: t1 -> t2 -> t3 -> t4
             lightStates[currentLight] = true;
             for (int i = 0; i < 4; i++) lights[i].state = lightStates[i];
         }

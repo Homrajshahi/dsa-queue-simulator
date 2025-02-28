@@ -3,10 +3,6 @@
 
 #include "queue.h"
 
-<<<<<<< HEAD
-// Window and road dimensions
-=======
->>>>>>> b73988b (solving a problem of dequw)
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 600
 #define ROAD_WIDTH 120
@@ -18,7 +14,3 @@ void startVehicleGeneration(const char* filename);
 void writeVehicleToFile(Vehicle* vehicle, const char* filename);
 
 #endif
-<<<<<<< HEAD
-
-=======
->>>>>>> b73988b (solving a problem of dequw)
