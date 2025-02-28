@@ -2,7 +2,11 @@
 
 Welcome to the **DSA Queue Simulator**—an elegant, queue-driven traffic junction simulator designed for a dynamic four-road intersection (A, B, C, D), each boasting three lanes. Crafted for **Assignment #1** in *Data Structures and Algorithms (COMP202)* at **Kathmandu University’s Department of Computer Science and Engineering**, this project harnesses the power of **circular queues** and **SDL2** to deliver a visually stunning, real-time traffic management experience. ✨
 
----
+because of some problem in screen recording in my laptop:
+https://github.com/user-attachments/assets/250cecf0-886f-45b9-b213-2e1309fe2a84
+
+
+
 
 ## 🌟 Overview
 This simulator orchestrates traffic flow at a bustling junction, ensuring fairness under normal conditions and prioritizing **Road A’s Lane 2 (AL2)** when congestion spikes above **10 vehicles** (until under **5**). With **SDL2’s magic**, roads, traffic lights *(t1, t2, t3, t4)*, and vehicles—**blue for regular cars, red/orange for emergencies**—are rendered at a crisp **60 FPS**. Vehicles move, pause at zebra crossings, and strive to navigate turns *(e.g., Lane 1 [L1] turning left to Lane 3 [L3] on the target road).* 
